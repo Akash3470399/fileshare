@@ -17,8 +17,11 @@
 #define BATCHESPOSSB 32	// no of batches that can handle
 #define PARTSINBATCH 4	// no of parts in batch
 #define PARTSIZE 8 // bytes in part
+#define BATCHSIZE PARTSIZE * PARTSINBATCH
+#define BATCH_CYCLE_SIZE BATCHSIZE * BATCHESPOSSB
 
-#define P1 5431
-#define P2 5432
+
+#define P1 5432
+#define P2 5431
 
 #endif
