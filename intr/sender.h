@@ -14,10 +14,9 @@ struct fileinfo
 
 int isvalid_send_cmd(char *cmd);
 
-int send_nextbatch(fileinfo *finfo, int batches_sent);
-int notify_batch_cycle(unsigned int batch_cycleno);
 int send_batchwise(fileinfo *finfo);
-int send_batch(fileinfo *finfo, int cur_batch_cycle, int batchno);
+int send_batch(fileinfo *finfo, unsigned int batches_sent, unsigned int batchno);
+int send_missing_parts(FILE *sendfilefp, long batchpos, unsigned int batchno);
 void send_file(char *filename);
 int batch_recovery(fileinfo *finfo, int cur_batch_cycle, int batchno);
 int notify_receiver(fileinfo *finfo);

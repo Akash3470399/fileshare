@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "intr/sender.h"
 #include "intr/ops.h"
@@ -22,8 +23,8 @@ int isvalid_send_cmd(char *cmd)
 	{
 		strcpy(str, &(cmd[fileidx]));
 		while((tryno < NO_OF_TRIES) && (res == 0))
-		{
-			if(isvalid_file(str) == 1)
+        {
+		    if(isvalid_file(str) == 1)
 			{	
 				res = 1;
 				strcpy(&(cmd[fileidx]), str);
@@ -54,6 +55,7 @@ int notify_receiver(fileinfo *finfo)
 	char filename[FILENMLEN];
 	unsigned char send_buf[BUFLEN], recv_buf[BUFLEN];
 	int tryno = 0, filesize, sendmsg_size, recvmsg_size, res = 0;
+	timer *t = init_timer(_RECV_WAIT);
 
 	memmove(filename, finfo->name, FILENMLEN);
 	filesize = finfo->size;
@@ -67,148 +69,147 @@ int notify_receiver(fileinfo *finfo)
 	
 	sendmsg_size = 1 + FILENMLEN + NUMSIZE;			
 	
-	while(tryno < NO_OF_TRIES && res == 0)
+	while(!(timer_reached(t)) && res == 0)
 	{
+
 		send_buffer(send_buf, sendmsg_size);
 		WAIT(_MSG_WAIT);
 		
 		recvmsg_size = receive_inbuffer(recv_buf);
-		if(recvmsg_size > 0 && recv_buf[OPIDX] == SEND)
-			res = 1;
-
+		if(recvmsg_size > 0 && recv_buf[OPIDX] == SENDBATCH)
+			res = 1;	// batch verification remain.
+		else if(recvmsg_size > 0)
+			printf("else %x\n", recv_buf[0]);
 		tryno += 1;
 	}
 	return res;
 }
 
-int notify_batch_cycle(unsigned int batch_cycleno)
-{
-	char buffer[5], recv_buf;
-	int res = 0;
-	timer *t = init_timer(_MSG_WAIT);
-
-	buffer[OPIDX] = SENDING;
-	extract_num_bytes(&(buffer[1]), batch_cycleno);
-
-
-	while(res == 0 && !(timer_reached(t)))
-	{
-		send_buffer(buffer, 5);	// <SENDING><batch_cycleno> total 5 bytes
-		
-		WAIT(2);
-		if((receive_inbuffer(&recv_buf) > 0) && recv_buf == SEND)
-			res = 1;
-	}	
-
-	printf("notified %d batch %d\n", batch_cycleno, res);
-	return res;
-}
-
-
 int send_batchwise(fileinfo *finfo)
 {
-	int cur_batch_cycle = 0, total_batch_cycles, batchno = 0;	
-	timer *bt = init_timer(200);
 
-	total_batch_cycles = CEIL(finfo->size, BATCH_CYCLE_SIZE);
+	unsigned char recv_buf[BUFLEN], msg;
+    unsigned int batches_sent = 0, batchno = 0, total_batches, req_batch, exp_batchno;
+    int res = 0,recvmsg_size;
+    timer *t = init_timer(_RECV_WAIT);
 
-	while(cur_batch_cycle < total_batch_cycles && !(timer_reached(bt)))
-	{
-		if(notify_batch_cycle(cur_batch_cycle) == 1)
+	total_batches = CEIL(finfo->size, BATCHSIZE);
+
+	while(!(timer_reached(t)) && res == 0)
+	{		
+		recvmsg_size = receive_inbuffer(recv_buf);
+		if(recvmsg_size > 0 && recv_buf[OPIDX] == SENDBATCH && bytes_to_num(&(recv_buf[1])) == 0)	// batch 0
 		{
-			printf("Sending %d batch\n", batchno);
-			batchno = 0;
-			while(batchno <= MAXBATCHNUM && !(timer_reached(bt)))
-			{
-				if(send_batch(finfo, cur_batch_cycle, batchno) == 1)
-				{
-					batchno += 1;
-					reset_timer(bt);
-				}		
-			}
+			reset_timer(t);
+			res = 1;
 		}
+		else if(recvmsg_size > 0)
+			printf("exp %d but got %d", batchno, bytes_to_num(&(recv_buf[1])));
 	}
-}
 
-int batch_recovery(fileinfo *finfo, int cur_batch_cycle, int batchno)
-{
-	int partpos, partno, res = 0, recvmsg_size, sendmsg_size;
-	unsigned char send_buf[BUFLEN], recv_buf[BUFLEN];
-	FILE *fp = fopen(finfo->name, "rb+");
-	timer *t = init_timer(20);
+	printf("sendig batch wise %d res\n", res);
+	while(res == 1 && !(timer_reached(t)) && batches_sent <= total_batches)
+	{	
+			exp_batchno = send_batch(finfo, batches_sent, batchno);
+			
 
-	if(fp != NULL)
-	{
-		while(!(timer_reached(t)) && res == 0)
-		{
-			recvmsg_size = receive_inbuffer(recv_buf);
-			if(recvmsg_size > 0 && get_op(recv_buf[OPIDX]) == RECEIVED)		// everything is fine
-				res = 1;													// batch has been sent successfully
-			else if(recvmsg_size > 0 && get_op(recv_buf[OPIDX]) == RESEND)
-			{	// resending missing parts in batch
-				for(int i = DATAIDX; i < recvmsg_size; i += NUMSIZE)
-				{
-					partno = bytes_to_num(&(recv_buf[i]));
-					partpos = (cur_batch_cycle * BATCH_CYCLE_SIZE) + (batchno * BATCHSIZE) + (partno * PARTSIZE);
-					fseek(fp, partpos, SEEK_SET);
-
-					send_buf[OPIDX] = concat_batchnop(batchno, DATA);
-					extract_num_bytes(&(send_buf[PRTIDX]), partno);
-				
-					sendmsg_size = 1 + NUMSIZE;
-					sendmsg_size += fread(&(send_buf[DATAIDX]), 1, PARTSIZE, fp);
-
-					send_buffer(send_buf, sendmsg_size);
-				}
+			if(exp_batchno == batchno)
+			{
+				batches_sent += 1;
+				batchno = batches_sent % BATCHESPOSSB;
 				reset_timer(t);
 			}
-		}
-		fclose(fp);	
+			else
+			{
+				printf("batch mismatched exp batch %d\n",exp_batchno);
+				res = 0;
+			}
+			WAIT(_MSG_WAIT);
 	}
-	return res;
+	
+	
 }
 
 
-
-// 
-int send_batch(fileinfo *finfo, int cur_batch_cycle, int batchno)
+// send masg : <DATA(1)><partno(4)><data...>
+int send_batch(fileinfo *finfo, unsigned int batches_sent, unsigned int batchno)
 {
-	FILE *fp;
-	unsigned char send_buf[BUFLEN];
-	int sendmsg_size;
-	unsigned int partno, res = 0, last_batch_cycle, batchpos, parts_in_batch;
-   
-	last_batch_cycle = CEIL(finfo->size, BATCH_CYCLE_SIZE);
 
-	fp = fopen(finfo->name, "rb+");
-	parts_in_batch = (cur_batch_cycle == last_batch_cycle)? last_batch_cycle % PARTSINBATCH : PARTSINBATCH;
+    unsigned char send_buf[BUFLEN];
+    FILE *sendfilefp;
+    unsigned int partno = 0, sendmsg_size;
+    long batchpos = batches_sent * BATCHSIZE;
+	int res = -1;
 
+    sendfilefp = fopen(finfo->name, "rb+");
+    if(sendfilefp != NULL)
+    {
+	printf("in send batch\n");
+		fseek(sendfilefp, batchpos, SEEK_SET);
+        while(!(feof(sendfilefp)) && partno < PARTSINBATCH)
+        {
+            sendmsg_size = 0;
+            send_buf[OPIDX] = concat_batchnop(batchno, DATA);
+            extract_num_bytes(&(send_buf[PRTIDX]), partno);
 
-	if(fp != NULL)
-	{
-		batchpos = (BATCH_CYCLE_SIZE * cur_batch_cycle) + (batchno * BATCHSIZE);
-		fseek(fp, batchpos, SEEK_SET);
+            sendmsg_size = 1 + NUMSIZE;
 
-		while(!feof(fp) && partno < parts_in_batch)
-		{
-			send_buf[OPIDX] = concat_batchnop(batchno, DATA);
-			extract_num_bytes(&(send_buf[PRTIDX]), partno);
+            sendmsg_size += fread(&(send_buf[DATAIDX]), 1, PARTSIZE, sendfilefp);
 
-			sendmsg_size = 1 + NUMSIZE; 
-
-			sendmsg_size += fread(&(send_buf[DATAIDX]), 1, PARTSIZE, fp);	
-
-			send_buffer(send_buf, sendmsg_size);
+			printf("batch %d part %d len %d\n", batches_sent, partno, sendmsg_size-5);
+            send_buffer(send_buf, sendmsg_size);
 			partno += 1;
-		}
+        }
 
-		fclose(fp);
-		res = batch_recovery(finfo, cur_batch_cycle, batchno);		// handle recovery if any
-		printf("cycle %d batch %d, res %d\n", cur_batch_cycle, batchno, res);
-	}
+        res = send_missing_parts(sendfilefp, batchpos, batchno);
+		fclose(sendfilefp);
+    }
+    else
+        printf("can't open file %s\n", finfo->name);
+	printf("%d res in send_batch\n", res);
 	return res;
 }
 
+int send_missing_parts(FILE *sendfilefp, long batchpos, unsigned int batchno)
+{
+	int partno, recvmsg_size, sendmsg_size, res = -1, req_batch;
+	unsigned char recv_buf[BUFLEN], send_buf[BUFLEN], msg;
+	timer *t = init_timer(_RECV_WAIT);
+	long partpos;
+
+	while(!(timer_reached(t)) && res == 0 && sendfilefp != NULL)
+	{
+		recvmsg_size = receive_inbuffer(recv_buf);
+		req_batch = bytes_to_num(&(recv_buf[1]));
+		if(recvmsg_size > 0 && recv_buf[OPIDX] == SENDBATCH && req_batch == (batchno + 1) % BATCHSIZE)
+		{
+			res = (batchno + 1) % BATCHSIZE;
+			printf("sent %d\n", batchno);
+		}
+		else if(recvmsg_size > 0 && recv_buf[OPIDX] == RESENDPARTS)
+		{
+			for(int i = PRTIDX; i < (recvmsg_size - 1); i += 4)
+			{
+				sendmsg_size = 0;
+				send_buf[OPIDX] = concat_batchnop(batchno, DATA);
+
+				for(int p = 0; p < NUMSIZE; p++) 	
+					send_buf[PRTIDX+p] = recv_buf[PRTIDX+p];	// insted recalculating just resending requested partno bytes
+
+				sendmsg_size = 1 + NUMSIZE;
+
+				partpos = batchpos + (partno * PARTSIZE);
+				fseek(sendfilefp, partpos, SEEK_SET);
+				sendmsg_size += fread(&(send_buf[DATAIDX]), 1, PARTSIZE, sendfilefp);
+				send_buffer(send_buf, sendmsg_size);
+			}
+		}
+		else if(recvmsg_size > 0)
+			printf("failed to recover parts waited\n");
+	}
+	printf("res %d in send_missing\n", res);
+	return res;
+}
 
 // handle send file operation
 void send_file(char *filename)
@@ -221,7 +222,7 @@ void send_file(char *filename)
 	finfo.size = get_filesize(filename);
 
 	res = notify_receiver(&finfo);
-	
+	printf("res %d\n", res);	
 	if(res == 1)
 		send_batchwise(&finfo);
 }

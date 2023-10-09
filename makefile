@@ -9,9 +9,9 @@ IMPL_FILES = $(wildcard $(IMPL)/*.c)
 OBJ_FILES = $(patsubst $(IMPL)/%.c, $(OBJ)/%.o, $(IMPL_FILES))
 
 run: $(OBJ_FILES)
-	$(CC) $^ -o run
+	@$(CC) $^ -o run
 	@rm obj/*
-	./run
+	@./run
 	@rm run
 
 $(OBJ)/%.o : $(IMPL)/%.c

@@ -35,6 +35,11 @@ struct prtdata *init_prtdata(int size)
 	return pd;
 }
 
+void destroy_prddata(struct prtdata *pd)
+{
+	free(pd->mem);
+	free(pd);
+}
 // mark as pos'th element as present
 void set(struct prtdata *pd, unsigned int pos)
 {

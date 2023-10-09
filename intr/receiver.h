@@ -17,7 +17,7 @@ struct rfileinfo
 
 
 void receive_file(char *filename);
-int collect_file(rfileinfo *finfo);
+int receive_batchwise(rfileinfo *finfo);
 rfileinfo handle_notification();
 
 #endif
