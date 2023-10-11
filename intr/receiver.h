@@ -4,9 +4,15 @@
 #ifndef RECEIVER_H
 #define RECEIVER_H
 
+
+extern unsigned char sbuf[BUFLEN];
+extern unsigned int smsglen;
+
+extern unsigned char rbuf[BUFLEN];
+extern unsigned int rmsglen;
+
+
 typedef struct rfileinfo rfileinfo;
-
-
 struct rfileinfo
 {
 	char name[FILENMLEN];
@@ -17,7 +23,10 @@ struct rfileinfo
 
 
 void receive_file(char *filename);
+rfileinfo respto_handshake();
+int req_batch(rfileinfo *finfo, unsigned int batchno);
+int writetofile(rfileinfo *finfo, unsigned int batchno);
 int receive_batchwise(rfileinfo *finfo);
-rfileinfo handle_notification();
-
+int receive_batch(rfileinfo *finfo, unsigned int batches_recv);
+int recover_parts(rfileinfo *finfo, unsigned int batches_recv);
 #endif

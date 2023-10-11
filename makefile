@@ -12,6 +12,7 @@ run: $(OBJ_FILES)
 	@$(CC) $^ -o run
 	@rm obj/*
 	@./run
+	#@gdb ./run
 	@rm run
 
 $(OBJ)/%.o : $(IMPL)/%.c

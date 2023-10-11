@@ -6,6 +6,7 @@
 #define IDX1 1
 #define FLIDX 1
 #define PRTIDX 1
+#define BTCIDX 1
 #define DATAIDX 5
 
 

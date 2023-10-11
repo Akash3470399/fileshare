@@ -50,7 +50,7 @@ int get_filesize(char *filenm)
 	return size;
 }
 // takes 4 bytes of memery array and return int forming from it.
-unsigned int bytes_to_num(unsigned char *arr)
+unsigned int bytestonum(unsigned char *arr)
 {
 	// setting all bits to 0 so that bits can copy using or operation.
 	unsigned int num = 0, n;	
@@ -64,7 +64,7 @@ unsigned int bytes_to_num(unsigned char *arr)
 }
 
 // store 4 bytes of integer(num) into buffer array.
-void extract_num_bytes(unsigned char *buffer, unsigned int n)
+void numtobytes(unsigned char *buffer, unsigned int n)
 {
 	unsigned int num = (unsigned int)htole32((uint32_t)n);		// converting to little endian notation
 	for(int i = 0; i < 4; i++)

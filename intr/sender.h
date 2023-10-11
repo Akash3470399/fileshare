@@ -3,9 +3,16 @@
 #ifndef SENDER_H
 #define SENDER_H
 
-typedef struct fileinfo fileinfo;
+extern unsigned char sbuf[BUFLEN];
+extern unsigned int smsglen;
 
-struct fileinfo
+extern unsigned char rbuf[BUFLEN];
+extern unsigned int rmsglen;
+
+
+
+typedef struct sfileinfo sfileinfo;
+struct sfileinfo
 {
 	char name[FILENMLEN];
 	unsigned int size;
@@ -13,11 +20,9 @@ struct fileinfo
 
 
 int isvalid_send_cmd(char *cmd);
-
-int send_batchwise(fileinfo *finfo);
-int send_batch(fileinfo *finfo, unsigned int batches_sent, unsigned int batchno);
-int send_missing_parts(FILE *sendfilefp, long batchpos, unsigned int batchno);
+int make_handshake(sfileinfo *finfo);
+int send_batchwise(sfileinfo *finfo);
+int send_batch(sfileinfo *finfo, unsigned int batches_send);
+int send_missing_parts(sfileinfo *finfo, unsigned int batches_send);
 void send_file(char *filename);
-int batch_recovery(fileinfo *finfo, int cur_batch_cycle, int batchno);
-int notify_receiver(fileinfo *finfo);
 #endif

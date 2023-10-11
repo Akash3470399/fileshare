@@ -17,6 +17,12 @@
 int sockfd, addrlen;
 struct sockaddr_in receiverAddr, selfAddr, senderAddr;
 
+unsigned char sbuf[BUFLEN];
+unsigned int smsglen = 0;
+
+unsigned char rbuf[BUFLEN];
+unsigned int rmsglen = 0;
+
 
 
 // initial configurations of addresses & socket

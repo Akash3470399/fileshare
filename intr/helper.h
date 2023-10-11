@@ -5,8 +5,8 @@
 int isvalid_addr(char *addr);
 int isvalid_file(char *filenm);
 int get_filesize(char *filenm);
-unsigned int bytes_to_num(unsigned char *arr);
-void extract_num_bytes(unsigned char *buffer, unsigned int n);
+unsigned int bytestonum(unsigned char *arr);
+void numtobytes(unsigned char *buffer, unsigned int n);
 
 int isnumber(unsigned char *numstr);
 unsigned int tonumber(unsigned char *numstr);
