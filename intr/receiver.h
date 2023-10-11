@@ -25,7 +25,7 @@ struct rfileinfo
 void receive_file(char *filename);
 rfileinfo respto_handshake();
 int req_batch(rfileinfo *finfo, unsigned int batchno);
-int writetofile(rfileinfo *finfo, unsigned int batchno);
+int writetofile(FILE *, unsigned int batchno);
 int receive_batchwise(rfileinfo *finfo);
 int receive_batch(rfileinfo *finfo, unsigned int batches_recv);
 int recover_parts(rfileinfo *finfo, unsigned int batches_recv);

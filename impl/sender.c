@@ -158,14 +158,26 @@ int send_batch(sfileinfo *finfo, unsigned int curbatch)
 
 	int resp = 0;
 	char msg[100];
-	unsigned int reltv_batch = curbatch % BATCHESPOSSB;
+	unsigned int reltv_batch = curbatch % BATCHESPOSSB, batchpos, partno = 0;
+	unsigned int partspossible;
+	FILE *sendfp = fopen(finfo->name, "rb+");
 
+	batchpos = curbatch * BATCHSIZE;
 	sbuf[OPIDX] = concat_batchnop(reltv_batch, DATA);
-	snprintf(&(sbuf[1]), 64, "sent %d", curbatch);
+	partspossible = PARTSINBATCH;
 
-	send_buffer(sbuf, 10);
-	send_buffer(sbuf, 10);
-	send_buffer(sbuf, 10);
+	if(sendfp != NULL)
+	{
+		fseek(sendfp, batchpos, SEEK_SET);
+		while(!feof(sendfp) && partno < partspossible)
+		{
+			numtobytes(&(sbuf[PRTIDX]), partno);
+			smsglen = 1 + NUMSIZE;
+			smsglen += fread(&(sbuf[DATAIDX]), 1, PARTSIZE, sendfp);
+			send_buffer(sbuf, smsglen);
+			partno += 1;
+		}
+	}
 
 	if(send_missing_parts(finfo, curbatch))
 		resp = 1;

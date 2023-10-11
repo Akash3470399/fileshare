@@ -104,28 +104,24 @@ int req_batch(rfileinfo *finfo, unsigned int batchno)
 }
 
 // write batch part to file
-int writetofile(rfileinfo *finfo, unsigned int batchno)
+int writetofile(FILE *recvfp, unsigned int batchno)
 {
 	unsigned int batchpos, partpos, partno, totalpart, wrtbyte = 0;
-	FILE *recvfp;
 	
 	batchpos = batchno * BATCHSIZE;
 	partno = bytestonum(&(rbuf[PRTIDX]));
 	partpos = batchpos + (partno * PARTSIZE);
 	
-	recvfp = fopen(finfo->name, "wb+");
-	
 	if(recvfp != NULL)
 	{
 		fseek(recvfp, partpos, SEEK_SET);
-		set(finfo->pd, partno);
+		//set(finfo->pd, partno);
 		wrtbyte = fwrite(&(rbuf[DATAIDX]), 1, rmsglen - 5, recvfp);	// 5 is header size 
 		fflush(recvfp);
 		fclose(recvfp);
 	}
 	else
 		printf("write file failed\n");
-	printf("recvd %d written %d\n", rmsglen-5, wrtbyte);
 	return wrtbyte;
 }
 
@@ -150,27 +146,39 @@ int receive_batch(rfileinfo *finfo, unsigned int curbatch)
 {
 	unsigned char op;
 	int tryno = 0, reltv_batch = curbatch % BATCHESPOSSB, resp = 0;
-	while(tryno < NO_OF_TRIES && resp == 0)
-	{
-		rmsglen = receive_inbuffer(rbuf);
-		op = get_op(rbuf[OPIDX]);
-		
-		if(rmsglen > 0 && op == DATA && get_batchno(rbuf[OPIDX]) == reltv_batch)
-		{
-			write(1, &rbuf[1], 10);
-			//resp = 1;
-		}
-		tryno += 1;
-	}
+	FILE *recvfp = fopen(finfo->name, "wb+");
+	unsigned int batchpos = curbatch * BATCHSIZE, partno, partpos;
+	timer *t = init_timer(_MSG_WAIT);
 
-	resp = recover_parts(finfo, curbatch);
+	if(recvfp != NULL)
+	{
+		while(tryno < NO_OF_TRIES)
+		{
+			rmsglen = receive_inbuffer(rbuf);
+			op = get_op(rbuf[OPIDX]);
+			
+			if(rmsglen > 0 && op == DATA && get_batchno(rbuf[OPIDX]) == reltv_batch)
+			{
+				writetofile(recvfp, curbatch);
+				reset_timer(t);
+			}
+
+			if(timer_reached(t))
+			{	
+				tryno += 1;
+				reset_timer(t);
+			}
+		}
+		fclose(recvfp);
+		resp = recover_parts(finfo, curbatch);
+	}
 	return resp;
 }
 
 int recover_parts(rfileinfo *finfo, unsigned int curbatch)
 {
 	int resp = 0;
-	
+	printf("received %d\n", curbatch);
 	resp = req_batch(finfo, curbatch+1);
 	if(resp > 0)
 		resp = 1;
