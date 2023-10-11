@@ -45,124 +45,7 @@ int isvalid_send_cmd(char *cmd)
 	return res;
 }
 
-// Sends acknowledge to reciever that this sytem want to send a file
-// & make appropiate settings 
-// if receiver is ready to accept the file then notify_receiver function 
-// return 1 else 0
-// notify msg : <SENDING(1)><filename(FILENMLEN)><filesize(NUMSIZE)>
-int make_handshake(sfileinfo *finfo)
-{
-	unsigned int req_batch;
-	int resp = -1;
 
-	timer *t = init_timer(_RECV_WAIT);
-
-	memset(sbuf, 0, sizeof(sbuf));
-
-	sbuf[OPIDX] = SENDING;
-	memmove(&(sbuf[FLIDX]), finfo->name, FILENMLEN);
-	numtobytes(&(sbuf[FILENMLEN + 1]), finfo->size);
-
-	smsglen = 1 + FILENMLEN + NUMSIZE;
-
-	while(!(timer_reached(t)) && resp == -1)
-	{
-		send_buffer(sbuf, smsglen);
-		WAIT(5);		
-		rmsglen = receive_inbuffer(rbuf);
-		req_batch = bytestonum(&(rbuf[BTCIDX]));
-
-		if(rmsglen > 0 && rbuf[OPIDX] == SENDBATCH && req_batch == 0)
-			resp = 1;
-		else if(rmsglen > 0)
-			printf("handshake failed\n");
-	}
-	return resp;
-}
-
-
-
-int send_batchwise(sfileinfo *finfo)
-{
-	int res = 1;
-	unsigned int batchno = 0, totalbatches, batches_send = 0, req_batch;
-	timer *t = init_timer(_RECV_WAIT);
-	totalbatches = CEIL(finfo->size, BATCHSIZE);
-	while(!(timer_reached(t)) && batches_send <= totalbatches)
-	{
-		req_batch = send_batch(finfo, batches_send); 
-		if(req_batch > -1)
-		{
-				batches_send += 1;
-			reset_timer(t);
-		}
-
-	}
-}
-
-
-int send_batch(sfileinfo *finfo, unsigned int batches_send)
-{
-	unsigned char opbt;
-	int resp = 0;
-	unsigned int partno = 0, partspossible, partpos, batchno, batchpos;
-	timer *t = init_timer(_MSG_WAIT);
-	FILE *sendfp = fopen(finfo->name, "rb+");;
-
-
-	batchno = batches_send % BATCHESPOSSB;
-	partspossible = PARTSINBATCH;	// need to update
-	batchpos = batches_send * BATCHSIZE;
-
-	if(sendfp != NULL)
-	{
-		fseek(sendfp, batchpos, SEEK_SET);
-		sbuf[OPIDX] = concat_batchnop(batchno, DATA);
-		while(!(timer_reached(t)) && partno < partspossible)
-		{
-			numtobytes(&(sbuf[PRTIDX]), partno);
-			smsglen = 1 + NUMSIZE;
-
-			smsglen += fread(&(sbuf[DATAIDX]), 1, PARTSIZE, sendfp);
-			send_buffer(sbuf, smsglen);
-			partno += 1;
-		}
-		fclose(sendfp);
-
-		if((resp = send_missing_parts(finfo, batches_send)) < 0)
-			printf("send miss failed\n");
-		else
-			resp = 1;
-				
-	}
-	return resp;
-}
-
-int send_missing_parts(sfileinfo *finfo, unsigned int batches_send)
-{
-	int resp = -1;
-	timer *t = init_timer(_RECV_WAIT);
-	unsigned int opbt, requested_batch;
-	while(!(timer_reached(t)) && resp == -1)
-	{
-		rmsglen = receive_inbuffer(rbuf);
-		opbt = rbuf[OPIDX];
-		requested_batch = bytestonum(&(rbuf[BTCIDX]));
-		if(rmsglen > 0 && rbuf[OPIDX] == SENDBATCH && requested_batch == batches_send +1) 
-		{
-			resp = 0;
-			printf("handled missing parts\n");
-		}
-		else if(rmsglen > 0 && rbuf[OPIDX] == SENDBATCH)
-		{
-			printf("in missing %d exp but %d got\n", batches_send+1, requested_batch);
-			//resp = requested_batch;
-			resp = 1;
-		}		else resp = -1;
-	}
-
-	return resp;
-}
 // handle send file operation
 void send_file(char *filename)
 {
@@ -173,12 +56,149 @@ void send_file(char *filename)
 	memmove(finfo.name, filename, FILENMLEN);
 	finfo.size = get_filesize(filename);
 
-	if(make_handshake(&finfo) != -1)
+	if(make_handshake(&finfo))
 	{
 		send_batchwise(&finfo);
-		printf("Hand shake handeled\n");
+	}
+}
+
+// check if receiver is requesting for correct next batch
+int validate_batchreqst(unsigned int batchno)
+{
+	unsigned char op;
+	unsigned int reqst_batch;
+	int tryno = 0, resp = 0;
+	timer *t = init_timer(_MSG_WAIT);
+
+	while(tryno < NO_OF_TRIES && resp == 0)
+	{
+		rmsglen = receive_inbuffer(rbuf);
+		op = rbuf[OPIDX];
+		reqst_batch = bytestonum(&(rbuf[BTCIDX]));
+
+		if(rmsglen > 0 && op == SENDBATCH && reqst_batch == batchno)
+			resp = 1;
+
+		if(timer_reached(t))
+		{
+			tryno += 1;
+			reset_timer(t);
+		}
+	}
+
+	return resp;
+}
+
+// Sends acknowledge to reciever that this sytem want to send a file
+// & make appropiate settings 
+// if receiver is ready to accept the file then notify_receiver function 
+// return 1 else 0
+// notify msg : <SENDING(1)><filename(FILENMLEN)><filesize(NUMSIZE)>
+int make_handshake(sfileinfo *finfo)
+{
+	unsigned char op;
+	unsigned int req_batch;
+	int resp = 0, tryno = 0;
+
+	timer *t = init_timer(_MSG_WAIT);
+
+	// message create
+	sbuf[OPIDX] = SENDING;
+	memmove(&(sbuf[FLIDX]), finfo->name, FILENMLEN);
+	numtobytes(&(sbuf[FILENMLEN + 1]), finfo->size);
+
+	// length of message
+	smsglen = 1 + FILENMLEN + NUMSIZE;
+	
+	// sending message
+	send_buffer(sbuf, smsglen);
+
+	while(tryno < NO_OF_TRIES && resp == 0)
+	{
+		rmsglen = receive_inbuffer(rbuf);
+		req_batch = bytestonum(&(rbuf[BTCIDX]));
+		op = rbuf[OPIDX];
+
+		// if request for batch 0 is received
+		if(rmsglen > 0 && op == SENDBATCH && req_batch == 0)
+			resp = 1;
+
+		// if timer reached resend the message
+		if(timer_reached(t))
+		{
+			send_buffer(sbuf, smsglen);
+			reset_timer(t);
+			tryno += 1;
+		}
+	}
+	return resp;
+}
+
+int send_batchwise(sfileinfo *finfo)
+{
+
+	unsigned int totalbatches, curbatch = 0, resp = 0, tryno = 0;
+
+	totalbatches = CEIL(finfo->size, BATCHSIZE);
+
+	while(tryno < NO_OF_TRIES && curbatch <= totalbatches)
+	{
+		if(send_batch(finfo, curbatch) == 1)
+		{
+			curbatch += 1;
+			tryno -= 1;
+		}
+		tryno += 1;
 	}
 }
 
 
+int send_batch(sfileinfo *finfo, unsigned int curbatch)
+{
 
+	int resp = 0;
+	char msg[100];
+	unsigned int reltv_batch = curbatch % BATCHESPOSSB;
+
+	sbuf[OPIDX] = concat_batchnop(reltv_batch, DATA);
+	snprintf(&(sbuf[1]), 64, "sent %d", curbatch);
+
+	send_buffer(sbuf, 10);
+	send_buffer(sbuf, 10);
+	send_buffer(sbuf, 10);
+
+	if(send_missing_parts(finfo, curbatch))
+		resp = 1;
+
+	return resp;
+
+}
+
+int send_missing_parts(sfileinfo *finfo, unsigned int curbatch)
+{
+	unsigned char op;
+	int tryno = 0, resp = 0;
+	unsigned int reqst_batch, reltv_batch = curbatch % BATCHESPOSSB;
+	timer *t = init_timer(_MSG_WAIT);
+
+	while(tryno < NO_OF_TRIES && resp == 0)
+	{
+		rmsglen = receive_inbuffer(rbuf);
+		op = rbuf[OPIDX];
+		reqst_batch = bytestonum(&(rbuf[BTCIDX]));
+
+		if(rmsglen > 0 && op == SENDBATCH && reqst_batch == curbatch +1)
+			resp = 1;
+
+		if(timer_reached(t))
+		{
+			sbuf[OPIDX] = concat_batchnop(reltv_batch, DATA);
+			snprintf(&(sbuf[1]), 64, "rsend %d", curbatch);
+			send_buffer(sbuf, 11);
+			reset_timer(t);
+			tryno += 1;
+		}
+	}
+
+	return resp;
+}
