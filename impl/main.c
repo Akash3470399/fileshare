@@ -36,10 +36,10 @@ void net_config(char *addr)
 
 	receiverAddr.sin_family = AF_INET;
 	receiverAddr.sin_port = htons(P1);	//htons(RECEIVER_PORT);
-	receiverAddr.sin_addr.s_addr = inet_addr("192.168.43.248");
+	receiverAddr.sin_addr.s_addr = inet_addr(addr);
 
 	selfAddr.sin_family = AF_INET;
-	selfAddr.sin_port = htons(P2); 		//htons(RECEIVER_PORT);
+	selfAddr.sin_port = htons(P2); 		
 
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
