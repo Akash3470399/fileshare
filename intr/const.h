@@ -21,7 +21,7 @@
 #define BATCH_CYCLE_SIZE BATCHSIZE * BATCHESPOSSB
 
 
-#define P1 5432
-#define P2 5431
+#define P1 5431
+#define P2 5432
 
 #endif

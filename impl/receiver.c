@@ -51,6 +51,7 @@ rfileinfo respto_handshake()
 		{
 			memmove(&(finfo.name[1]), &(rbuf[FLIDX]), FILENMLEN - 1);
 			finfo.size = bytestonum(&(rbuf[FILENMLEN+1]));
+			fopen(finfo.name, "wb+");
 			resp = 1;
 		}
 
@@ -74,7 +75,7 @@ int req_batch(rfileinfo *finfo, unsigned int batchno)
 	unsigned char op;
 	int tryno = 0,resp = 0, reltv_batch;
 	timer *t = init_timer(_MSG_WAIT);
-	FILE *recvfp = fopen(finfo->name, "wb+");
+	FILE *recvfp = fopen(finfo->name, "ab+");
 	unsigned int partinbatch = PARTSINBATCH;
 
 	reltv_batch = batchno % BATCHESPOSSB; 
@@ -156,7 +157,7 @@ int receive_batch(rfileinfo *finfo, unsigned int curbatch)
 {
 	unsigned char op;
 	int tryno = 0, reltv_batch = curbatch % BATCHESPOSSB, resp = 0;
-	FILE *recvfp = fopen(finfo->name, "wb+");
+	FILE *recvfp = fopen(finfo->name, "ab+");
 	unsigned int batchpos = curbatch * BATCHSIZE, partno, partinbatch;
 	timer *t = init_timer(_MSG_WAIT);
 
@@ -227,7 +228,7 @@ int recover_parts(rfileinfo *finfo, unsigned int curbatch)
 		op = get_op(rbuf[OPIDX]);
 		if(rmsglen > 0 && op == DATA && get_batchno(rbuf[OPIDX]) == reltv_batch)
 		{
-			sendfp = fopen(finfo->name, "wb+");
+			sendfp = fopen(finfo->name, "ab+");
 			if(sendfp != NULL)
 			{
 				writetofile(finfo, sendfp, curbatch);
