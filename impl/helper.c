@@ -9,6 +9,7 @@
 
 #include "intr/helper.h"
 #include "intr/const.h"
+#include "intr/ops.h"
 #define _BSD_SOURCE
 
 
@@ -141,27 +142,30 @@ int CEIL(int a, int b)
 	return res;
 }
 
-unsigned char concat_batchnop(unsigned short int batchno, unsigned char op)
+unsigned char encode_part(unsigned char part)
 {
-	unsigned char res = 0;
-	res = (batchno & MAXBATCHNUM) << OPCODELEN;
-	res |= op;
-	return res;
+	part |= (1<<7);
+	return part;
 }
 
 
-// first BATCHNOLEN bits in char are used to store batch no
-// then last (8 - BATCHNOLEN) = (OPCODELEN (3)) bits are used for opcode op operation
-unsigned short int get_batchno(unsigned char ch)
+// 1st bit represent if it is data operation 
+// if yes then remaining 7 bits represent the partno
+unsigned char get_partno(unsigned char ch)
 {
-	unsigned short int num;
-
-	num = (ch>>OPCODELEN);
-	return num;
+	ch = ch << 1;
+	ch = ch >> 1;
+	return ch;
 }
 
 // last 3 bits
+// interpreat the operator from bits
 unsigned char get_op(unsigned char ch)
 {
-	return (ch & 0x7);
+	unsigned char mask = 1<<7, op;
+	if((ch & mask) == mask)	// if msb is set then its data operation
+		op = DATA;
+	else
+		op = (ch & 7);	// as last 3 bits represent the opration code
+	return op;
 }

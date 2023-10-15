@@ -23,6 +23,7 @@ unsigned int smsglen = 0;
 unsigned char rbuf[BUFLEN];
 unsigned int rmsglen = 0;
 
+unsigned char op;	// to keep record of operation
 
 
 // initial configurations of addresses & socket
@@ -68,7 +69,7 @@ int send_buffer(unsigned char *buffer, int len)
 int receive_inbuffer(unsigned char *buffer)
 {
 	int res;
-	res = recvfrom(sockfd, buffer, BUFLEN, MSG_DONTWAIT, (struct sockaddr *)&senderAddr,&addrlen);
+	res = recvfrom(sockfd, buffer, BUFLEN, MSG_DONTWAIT, (struct sockaddr *)&senderAddr,(socklen_t *)&addrlen);
 
 	if(res < 0 && errno == EAGAIN)
 		res = 0;	
@@ -80,11 +81,10 @@ int receive_inbuffer(unsigned char *buffer)
 
 int main()
 {	
-	char cmd[64], addr[16] = "127.0.0.1";
+	char cmd[64], addr[20] = "127.0.0.1";
 	int valid_addr = 0, tryno = NO_OF_TRIES, fileidx = 5;
 
 	
-	net_config(addr);
 
 	while(tryno < NO_OF_TRIES && valid_addr == 0)
 	{
@@ -107,6 +107,7 @@ int main()
 		}
 	}
 
+	net_config(addr);
 	while(1)
 	{
 		printf(">>>");

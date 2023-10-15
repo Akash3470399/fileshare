@@ -1,4 +1,4 @@
-CC = gcc
+CC = clang#gcc
 CFLAGS = -I./
 
 IMPL = ./impl
@@ -9,7 +9,8 @@ IMPL_FILES = $(wildcard $(IMPL)/*.c)
 OBJ_FILES = $(patsubst $(IMPL)/%.c, $(OBJ)/%.o, $(IMPL_FILES))
 
 run: $(OBJ_FILES)
-	$(CC) $^ -o run
+	@mkdir -p rec
+	@$(CC) $^ -o run
 	@rm obj/*
 	@./run
 	#@gdb ./run
@@ -17,4 +18,4 @@ run: $(OBJ_FILES)
 
 $(OBJ)/%.o : $(IMPL)/%.c
 	@mkdir -p $(@D)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	@$(CC) -c -o $@ $< $(CFLAGS)

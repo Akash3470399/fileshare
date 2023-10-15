@@ -41,7 +41,7 @@ void destroy_prddata(struct prtdata *pd)
 	free(pd);
 }
 // mark as pos'th element as present
-void set(struct prtdata *pd, unsigned int pos)
+void set(struct prtdata *pd, unsigned char pos)
 {
 	unsigned int grpno, grppos;
   	
@@ -55,7 +55,7 @@ void set(struct prtdata *pd, unsigned int pos)
 }
 
 // remove pos'th element
-void reset(struct prtdata *pd, unsigned int pos)
+void reset(struct prtdata *pd, unsigned char pos)
 {
 	unsigned int grpno, grppos;
   	if(pd != NULL)
@@ -67,8 +67,21 @@ void reset(struct prtdata *pd, unsigned int pos)
 }
 
 
+int ispart_present(struct prtdata *pd, unsigned char pos)
+{
+	int resp = -1;
+	unsigned int grpno, grppos;
+	if(pd != NULL)
+	{
+		grpno = pos / (GRPSIZE);
+		grppos = pos % (GRPSIZE);
+		resp = pd->mem[grpno] & (1<<grppos);
+	}
+	return resp;
+}
+
 // get next 
-unsigned int getmisprts(struct prtdata *pd, unsigned int *arr)
+unsigned int getmisprts(struct prtdata *pd, unsigned char *arr)
 {
 	unsigned int grpno, grppos, i, j, k = 0;
 	struct sr s;
@@ -114,7 +127,9 @@ void print_values(struct prtdata *pd)
 				printf("%ld ", ((i*(GRPSIZE))+j));
 		}
 	}
-	for(int j = 0; j < (pd->expcnt % (GRPSIZE)); j++)
+	
+	int last  = ((pd->expcnt % GRPSIZE) == 0)? GRPSIZE : (pd->expcnt % GRPSIZE);
+	for(int j = 0; j <last; j++)
 		if((pd->mem[i] & 1<<j) == (1<<j))
 			printf("%ld ", ((i*(GRPSIZE))+j));
 
