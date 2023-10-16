@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
 
@@ -42,4 +43,13 @@ void destroy_timer(timer *t)
 	free(t);
 }
 
+void cur_nanosec()
+{
 
+	long long cur_milisec;
+	struct timespec curtime;
+	
+	clock_gettime(CLOCK_MONOTONIC, &(curtime));
+
+	printf("time :%ld\n", ((curtime.tv_sec * 1000000000) + curtime.tv_nsec));
+}

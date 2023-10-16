@@ -1,4 +1,4 @@
-CC = clang#gcc
+CC = gcc
 CFLAGS = -I./
 
 IMPL = ./impl

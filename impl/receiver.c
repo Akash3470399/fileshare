@@ -48,7 +48,6 @@ int resp_handshake(rfileinfo *finfo)
 
 		if(rmsglen > 0 && op == SENDING)
 		{
-			printf("rmsglen %d op %x\n", rmsglen, op);
 			finfo->size = bytestonum(&(rbuf[sizeidx]));
 			memmove(finfo->name, &(rbuf[FLIDX]), FILENMLEN);
 			resp = 1;	
@@ -62,6 +61,7 @@ int resp_handshake(rfileinfo *finfo)
 			tryno += 1;
 		}
 	}
+
 	if(resp)
 	{
 		snprintf(filename, FILENMLEN+5, "rec/%s", finfo->name);
@@ -70,6 +70,8 @@ int resp_handshake(rfileinfo *finfo)
 		finfo->pd = init_prtdata(PARTSINBATCH);
 		resp = reqst_batch(finfo, 0);
 	}
+	else
+		printf("failed to connect.\n");
 	
 	fflush(stdout);
 	return resp;
@@ -85,7 +87,6 @@ int reqst_batch(rfileinfo *finfo, unsigned int batchno)
 	unsigned int resp_batchno, resp_partno;
 	timer *t = init_timer(_MSG_WAIT);
 
-	printf("requesting batch %d\n", batchno);
 	snprintf(filename, FILENMLEN+5, "rec/%s", finfo->name);
 	fp = fopen(filename, "rb+");
 	
@@ -129,13 +130,11 @@ int writetofile(FILE *recvfp, unsigned int batchno)
 	unsigned int partpos, batchpos, wrtbyt = 0;
 	char filename[FILENMLEN+5];
 
-	printf("write batch %d\n", batchno);
 	// to calculate the position of received bytes in file
 	partno = get_partno(rbuf[OPIDX]);
 	batchpos = batchno * BATCHSIZE;
 	partpos = batchpos + (partno * PARTSIZE);
 
-	printf("writting %d of part %d & batp %d partp %d\n", wrtbyt, partno, batchpos, partpos);
 	if(recvfp != NULL)
 	{
 		fseek(recvfp, partpos, SEEK_SET);
@@ -148,22 +147,21 @@ int writetofile(FILE *recvfp, unsigned int batchno)
 int receive_batchwise(rfileinfo *finfo)
 {
 	int tryno = 0, resp = 0;
-	unsigned int curbatch = 0;
-	timer *t = init_timer(_MSG_WAIT);
+	unsigned int curbatch = 0, totalbatches;
 	
-	while(tryno < NO_OF_TRIES)
+	totalbatches = CEIL(finfo->size, BATCHSIZE);
+	printf("total batches %d\n", totalbatches);
+	while(curbatch < totalbatches && resp == 0)
 	{
 		if(receive_batch(finfo, curbatch))
 		{
 			curbatch += 1;
-			reset_timer(t);
 			tryno = 0;
 		}
-
-		if(timer_reached(t))
+		else
 		{
-			reset_timer(t);
-			tryno += 1;
+			printf("unable to receive %d batch\n", curbatch);
+			resp = 1;
 		}
 	}
 	return resp;
@@ -172,16 +170,15 @@ int receive_batchwise(rfileinfo *finfo)
 int receive_batch(rfileinfo *finfo, unsigned int curbatch)
 {
 	char filename[FILENMLEN + 5];
-	int tryno = 0, resp = 0;
-	timer *t = init_timer(_MSG_WAIT);
+	int tryno = 0, resp = 0, msgcnt = PARTSINBATCH;
+	timer *t = init_timer(_MSG_WAIT * (msgcnt / 10));	// wait for at least 10% msg can reach
 	FILE *recvfp;
 	unsigned int resp_batchno, resp_partno;
-
 
 	snprintf(filename, FILENMLEN+5, "rec/%s", finfo->name);
 	recvfp = fopen(filename, "rb+");
 
-	while(tryno < NO_OF_TRIES && recvfp != NULL)
+	while(!(timer_reached(t)) && recvfp != NULL)
 	{
 		rmsglen = receive_inbuffer(rbuf);
 		op = get_op(rbuf[OPIDX]);
@@ -194,29 +191,81 @@ int receive_batch(rfileinfo *finfo, unsigned int curbatch)
 			set(finfo->pd, resp_partno);
 			reset_timer(t);
 		}
-
-		if(timer_reached(t))
-		{
-			tryno += 1;
-			reset_timer(t);
-		}
 	}
-
 	resp = recover_parts(finfo, curbatch);
-	printf("after recover %d\n", curbatch);
 	return resp;
 }
 
 // format <RESENDPARTS(1)><partno(4)><partno(4)>...
 // return size of request message
-unsigned int create_missing_part_request(int *part_arr, unsigned int arrsize, unsigned int batchno)
+unsigned int create_missing_part_request(unsigned char *part_arr, unsigned int arrsize, unsigned int batchno)
 {
-	return 1;
+	int buflimit = PARTSIZE, i;
+	sbuf[OPIDX] = RESENDPARTS;
+	numtobytes(&(sbuf[BTCIDX]), batchno);
+
+	for(i = 0; i < arrsize && i < buflimit; i++)
+	{
+		sbuf[DATAIDX + i] = part_arr[i];
+	}
+	return (i+DATAIDX);
 }
 
 int recover_parts(rfileinfo *finfo, unsigned int curbatch)
 {
-	int resp = reqst_batch(finfo, curbatch +1);
+	char filename[FILENMLEN+5];
+	int resp = 0, missprt_cnt = 0, tryno = 0;
+	unsigned char missparts_arr[PARTSINBATCH];
+	unsigned int resp_partno, resp_batchno;
+	timer *t = init_timer(_MSG_WAIT);
+	FILE *recvfp;
+
+	snprintf(filename, FILENMLEN+5, "rec/%s", finfo->name);
+	recvfp = fopen(filename, "rb+");
+	missprt_cnt = getmisprts(finfo->pd, missparts_arr);
+
+/*	if(missprt_cnt > 0)
+	{	
+		smsglen = create_missing_part_request(missparts_arr, missprt_cnt, curbatch);
+		send_buffer(sbuf, smsglen);
+	}
+*/
+	while(missprt_cnt > 0 && tryno < NO_OF_TRIES && recvfp != NULL)
+	{
+		rmsglen = receive_inbuffer(rbuf);
+		op = get_op(rbuf[OPIDX]);
+		resp_partno = get_partno(rbuf[OPIDX]);
+		resp_batchno = bytestonum(&(rbuf[BTCIDX]));
+
+		if(rmsglen > 0 && op == DATA && resp_batchno == curbatch)
+		{
+			writetofile(recvfp, curbatch);
+			set(finfo->pd, resp_partno);
+			reset_timer(t);
+			tryno = 0;
+		}
+
+		missprt_cnt = getmisprts(finfo->pd, missparts_arr);
+		
+		if(timer_reached(t) && missprt_cnt > 0)
+		{
+			smsglen = create_missing_part_request(missparts_arr, missprt_cnt, curbatch);
+			send_buffer(sbuf, smsglen);
+			tryno += 1;
+			reset_timer(t);
+		}
+	}
+		
+	if(missprt_cnt == 0)
+	{
+		fflush(stdout);
+		printf("%u received\n", curbatch* BATCHSIZE);
+		fflush(stdout);
+		destroy_prddata(finfo->pd);
+		finfo->pd = init_prtdata(PARTSINBATCH);
+		resp = reqst_batch(finfo, curbatch +1);
+	}
 	
+	if(recvfp != NULL) fclose(recvfp);
 	return resp;
 }

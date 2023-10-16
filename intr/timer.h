@@ -26,4 +26,5 @@ int timer_reached(timer *t);
 
 void destroy_timer(timer *t);
 
+void cur_nanosec();
 #endif
