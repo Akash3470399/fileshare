@@ -260,7 +260,7 @@ int recover_parts(rfileinfo *finfo, unsigned int curbatch)
 	if(missprt_cnt == 0)
 	{
 		fflush(stdout);
-		printf("%u received\n", curbatch* BATCHSIZE);
+		printf("%u received\n", curbatch);
 		fflush(stdout);
 		destroy_prddata(finfo->pd);
 		finfo->pd = init_prtdata(PARTSINBATCH);

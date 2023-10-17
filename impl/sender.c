@@ -169,7 +169,7 @@ int send_missing_parts(sfileinfo *finfo, unsigned int curbatch)
 	int resp = 0, tryno = 0, msgcnt = PARTSINBATCH;
 	unsigned char partno;
 	unsigned int reqst_batchno, batchpos, partpos;
-	timer *t = init_timer(_MSG_WAIT * msgcnt);
+	timer *t = init_timer(_MSG_WAIT * msgcnt * 2);
 	FILE *sendfp = fopen(finfo->name, "rb");
 
 	batchpos = batchpos * BATCHSIZE;
@@ -183,14 +183,13 @@ int send_missing_parts(sfileinfo *finfo, unsigned int curbatch)
 		if(rmsglen > 0 && op == SENDBATCH && reqst_batchno == (curbatch + 1))
 		{
 			fflush(stdout);
-			printf("%u sent\n", curbatch * BATCHSIZE);
-			printf("requested %d\n", reqst_batchno);
+			printf("%u sent\n", curbatch);
 			resp = 1;
 			fflush(stdout);
 		}
 		else if(rmsglen > 0 && op == RESENDPARTS && reqst_batchno == curbatch && sendfp != NULL)
 		{
-			printf("resending %d batch rmsglen %d\n", curbatch, rmsglen);
+			//printf("resending %d batch rmsglen %d\n", curbatch, rmsglen);
 			for(int i = DATAIDX; i < rmsglen; i++)
 			{
 				partno = rbuf[i];

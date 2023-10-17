@@ -6,7 +6,7 @@
 #define _MSG_WAIT 10 
 
 #define NUMSIZE 4		// size of int in bytes
-#define BUFLEN 520 
+#define BUFLEN 1040 
 #define FILENMLEN 32
 #define NO_OF_TRIES 20
 
@@ -14,10 +14,10 @@
 #define BATCHNOLEN 5	// in bits
 
 #define PARTSINBATCH 64	// no of parts in batch
-#define PARTSIZE 128 // bytes in part
+#define PARTSIZE 1024 // bytes in part
 #define BATCHSIZE PARTSIZE * PARTSINBATCH
 
-#define P1 5431
+#define P1 5432
 #define P2 5432
 
 #endif

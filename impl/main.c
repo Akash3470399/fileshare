@@ -25,6 +25,7 @@ unsigned int rmsglen = 0;
 
 unsigned char op;	// to keep record of operation
 
+unsigned int bytecount = 0;
 
 // initial configurations of addresses & socket
 // also binding of socket
@@ -61,8 +62,12 @@ int send_buffer(unsigned char *buffer, int len)
 
 	int res;
 	res = sendto(sockfd, buffer, len, MSG_DONTWAIT, (struct sockaddr *)&receiverAddr, (socklen_t)sizeof(receiverAddr));
-	if(res < 0)
-		printf("%s\n", strerror(errno));
+	if(res < 0 && errno != EAGAIN)
+	{
+		printf("sendbuffer :%s\n", strerror(errno));
+	}
+	else
+		res = 0;
 	return res;
 }
 
@@ -82,7 +87,7 @@ int receive_inbuffer(unsigned char *buffer)
 int main()
 {	
 	char cmd[64], addr[20] = "127.0.0.1";
-	int valid_addr = 0, tryno = NO_OF_TRIES, fileidx = 5;
+	int valid_addr = 0, tryno = 0, fileidx = 5;
 
 	
 
@@ -124,7 +129,8 @@ int main()
 		else if(strcmp(cmd,"exit") == 0)
 			exit(EXIT_SUCCESS);
 		else 
-			printf("%s menu...\n", cmd);	
+			printf("%s menu...\n", cmd);
+		printf("sent %d bytes all\n", bytecount);
 	}
 	return 0;
 }
