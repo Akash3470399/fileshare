@@ -95,7 +95,8 @@ int reqst_batch(rfileinfo *finfo, unsigned int batchno)
 
 	smsglen = 1 + NUMSIZE;
 	send_buffer(sbuf, smsglen);
-
+	
+	printf("requested %d\n", batchno);
 	while(tryno < NO_OF_TRIES && resp == 0)
 	{
 		rmsglen = receive_inbuffer(rbuf);

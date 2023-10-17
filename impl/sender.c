@@ -10,6 +10,7 @@
 #include "intr/main.h"
 
 
+unsigned int count = 0;
 // syntax : send <filename>
 // file name should not have spaces
 int isvalid_send_cmd(char *cmd)
@@ -120,7 +121,6 @@ int send_batchwise(sfileinfo *finfo)
 		if(send_batch(finfo, curbatch))
 		{
 			curbatch += 1;	
-			tryno = 0;
 		}
 		else
 		{
@@ -151,7 +151,6 @@ int send_batch(sfileinfo *finfo, unsigned int curbatch)
 
 			smsglen += fread(&(sbuf[DATAIDX]), 1, PARTSIZE, sendfp);
 
-			if(partno != 5)
 			send_buffer(sbuf, smsglen);
 			partno += 1;
 		}
@@ -183,9 +182,10 @@ int send_missing_parts(sfileinfo *finfo, unsigned int curbatch)
 
 		if(rmsglen > 0 && op == SENDBATCH && reqst_batchno == (curbatch + 1))
 		{
-			resp = 1;
 			fflush(stdout);
 			printf("%u sent\n", curbatch * BATCHSIZE);
+			printf("requested %d\n", reqst_batchno);
+			resp = 1;
 			fflush(stdout);
 		}
 		else if(rmsglen > 0 && op == RESENDPARTS && reqst_batchno == curbatch && sendfp != NULL)

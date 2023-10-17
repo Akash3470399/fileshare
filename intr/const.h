@@ -3,7 +3,7 @@
 
 
 #define _RECV_WAIT 10000
-#define _MSG_WAIT 5 
+#define _MSG_WAIT 10 
 
 #define NUMSIZE 4		// size of int in bytes
 #define BUFLEN 520 
@@ -14,7 +14,7 @@
 #define BATCHNOLEN 5	// in bits
 
 #define PARTSINBATCH 64	// no of parts in batch
-#define PARTSIZE 1 // bytes in part
+#define PARTSIZE 128 // bytes in part
 #define BATCHSIZE PARTSIZE * PARTSINBATCH
 
 #define P1 5431
