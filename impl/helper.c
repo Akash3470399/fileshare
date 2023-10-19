@@ -8,8 +8,6 @@
 #include <errno.h>
 
 #include "intr/helper.h"
-#include "intr/const.h"
-#include "intr/ops.h"
 #define _BSD_SOURCE
 
 
@@ -76,60 +74,6 @@ void numtobytes(unsigned char *buffer, unsigned int n)
 		num = num<<8;
   	}
 }
-// checks if numstr is valid number
-// numstr must be terminated by '\0' 
-int isnumber(unsigned char *numstr)
-{
-	int res = 1, i=0;
-	while(numstr[i] != '\0' && res == 1)
-	{
-		if(numstr[i] <= '0' && numstr[i] >= '9')
-			res = 0;
-		i += 1;
-	}
-	return res;
-}
-
-// check if str is alphanumetic string or not
-int isalphanum(char *str)
-{
-	int i = 0, res = 1;
-	while(str[i] != '\0' && res == 1)
-	{
-		if(str[i] >= '0' && str[i] <= '9')
-			res = 1;
-		else if(str[i] >= 'a' && str[i] <= 'z')
-			res = 1;
-		else if(str[i] >= 'A' && str[i] <= 'Z')
-			res = 1;
-		else 
-			res = 0;
-
-		i += 1;
-	}
-
-	return res;
-}
-
-
-// convert str integer to corresponding int
-// numstr must be terminated by '\0' 
-unsigned int tonumber(unsigned char *numstr)
-{
-	unsigned int res = 0, i = 0;
-	if(isnumber(numstr) == 1) 
-	{
-		while(numstr[i] != '\0')
-		{
-			res *= 10;
-			res += numstr[i] - '0';
-			i += 1;
-		}
-	}
-	return res;
-}
-
-
 // calculate ceil |_x_| value for positive integers a & b
 int CEIL(int a, int b)
 {
@@ -140,32 +84,4 @@ int CEIL(int a, int b)
 		res += (a%b == 0)? 0 : 1;
 	}
 	return res;
-}
-
-unsigned char encode_part(unsigned char part)
-{
-	part |= (1<<7);
-	return part;
-}
-
-
-// 1st bit represent if it is data operation 
-// if yes then remaining 7 bits represent the partno
-unsigned char get_partno(unsigned char ch)
-{
-	ch = ch << 1;
-	ch = ch >> 1;
-	return ch;
-}
-
-// last 3 bits
-// interpreat the operator from bits
-unsigned char get_op(unsigned char ch)
-{
-	unsigned char mask = 1<<7, op;
-	if((ch & mask) == mask)	// if msb is set then its data operation
-		op = DATA;
-	else
-		op = (ch & 7);	// as last 3 bits represent the opration code
-	return op;
 }
