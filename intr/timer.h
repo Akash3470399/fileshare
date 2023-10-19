@@ -24,6 +24,7 @@ void reset_timer(timer *t);
 
 int timer_reached(timer *t);
 
+void reset_timer_offset(timer *t, long offset);
 void destroy_timer(timer *t);
 
 void cur_nanosec();

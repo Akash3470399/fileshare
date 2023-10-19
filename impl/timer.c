@@ -20,6 +20,12 @@ void reset_timer(timer *t)
 	clock_gettime(CLOCK_MONOTONIC, &(t->basetime));
 }
 
+void reset_timer_offset(timer *t, long offset)
+{
+	clock_gettime(CLOCK_MONOTONIC, &(t->basetime));
+	t->offset = offset;
+}
+
 int timer_reached(timer *t)
 {
 	long long ref_milisec, cur_milisec;
