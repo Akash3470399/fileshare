@@ -86,7 +86,7 @@ void record_time(timer *t)
 	printf("cur %lld, ref %lld\n", cur_milisec, ref_milisec);
 	if(newtime <= 0) newtime = 1;
 
-	if(MSGLAST = -1)
+	if(MSGLAST == -1)
 	{
 		MSGMIN = newtime;
 		MSGMAX = newtime;

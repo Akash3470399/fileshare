@@ -5,7 +5,6 @@
 #include "intr/sender.h"
 #include "intr/timer.h"
 #include "intr/main.h"
-#include "intr/globals.h"
 #include "intr/ops.h"
 #include "intr/helper.h"
 #include "intr/consts.h"
@@ -184,8 +183,8 @@ void _adjustContext()
 	//	free(sendbuf);
 	//	free(recvbuf);
 		
-		sendbuf = (char *)malloc(buflen);
-		recvbuf = (char *)malloc(buflen);
+		sendbuf = (unsigned char *)malloc(buflen);
+		recvbuf = (unsigned char *)malloc(buflen);
 	}
 }
 

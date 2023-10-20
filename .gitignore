@@ -1,5 +1,5 @@
 ./obj/*
 file1
-disk.img
+disk.*
 r*
 rec/*

@@ -7,11 +7,35 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-#include "intr/globals.h"
 #include "intr/helper.h"
 #include "intr/consts.h"
 #include "intr/receiver.h"
 #include "intr/sender.h"
+
+
+unsigned int selfport;
+unsigned int recvport;
+unsigned int partsize;
+unsigned int batchsize;
+unsigned int buflen;
+
+void init_globals(int p1, int p2)
+{
+	selfport = p1;
+	recvport = p2;
+	partsize = 1024; 
+	batchsize = partsize * PARTSINBATCH;
+	buflen = partsize + 10;
+}
+
+void show_globals()
+{
+	printf("self port %u\n", selfport);
+	printf("receiver port %u\n", recvport);
+	printf("partsize %u\n", partsize);
+	printf("batchsize %u\n", batchsize);
+	printf("buflen %u\n", buflen);
+}
 
 unsigned int sendmsglen;
 unsigned int recvmsglen;
@@ -25,7 +49,7 @@ int sockfd;
 struct sockaddr_in receiver_addr, self_addr;
 
 
-int config_socket(char *r_addr)
+void config_socket(char *r_addr)
 {
 	struct in_addr addr;
 
@@ -131,7 +155,7 @@ int isvalid_send_cmd(char *cmd)
 
 int main(int c, char* argv[])
 {
-	char addr[16] = "127.0.0.1";
+	char addr[20] = "127.0.0.1";
 	char cmd[32];
 	
 	//printf("Enter address :");
@@ -143,8 +167,9 @@ int main(int c, char* argv[])
 	config_socket(addr);
 
 	// buffers to be use for sending & receiveing
-	sendbuf = (char *)malloc(sizeof(buflen));
-	recvbuf = (char *)malloc(sizeof(buflen));
+	printf("buflen %d\n", buflen);
+	sendbuf = (unsigned char *)malloc(sizeof(buflen));
+	recvbuf = (unsigned char *)malloc(sizeof(buflen));
 
 	// accepting command
 	fgets(cmd, sizeof(cmd), stdin);
@@ -154,7 +179,7 @@ int main(int c, char* argv[])
 		send_file(&cmd[5]);	
 	else if(strcmp(cmd, "receive") == 0)
 		receive_file();
-	else if(!strcmp(cmd, "exit") == 0)
+	else if((!strcmp(cmd, "exit")) == 0)
 		printf("Invalid command\n");
 	return 0;
 }

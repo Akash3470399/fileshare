@@ -6,7 +6,6 @@
 #include "intr/receiver.h"
 #include "intr/timer.h"
 #include "intr/main.h"
-#include "intr/globals.h"
 #include "intr/ops.h"
 #include "intr/helper.h"
 #include "intr/consts.h"
@@ -92,7 +91,7 @@ int reqst_firstbatch(rfileinfo *finfo)
 			record_time(t);
 			if((recvfp = fopen(finfo->name, "wb+")) != NULL)
 			{
-				finfo->pd = init_prtdata(partsize);
+				finfo->pd = init_prtdata(PARTSINBATCH);
 				writetofile(recvfp, 0);
 				set(finfo->pd, partno);
 				fclose(recvfp);
@@ -108,6 +107,7 @@ int reqst_firstbatch(rfileinfo *finfo)
 			cur_attempt += 1;
 		}
 	}
+	destroy_timer(t);
 	return success;
 }
 
@@ -139,7 +139,7 @@ int reqst_batch(rfileinfo *finfo, unsigned int batchno)
 			record_time(t);
 			if((recvfp = fopen(finfo->name, "rb+")) != NULL)
 			{
-				finfo->pd = init_prtdata(partsize);
+				finfo->pd = init_prtdata(PARTSINBATCH);
 				writetofile(recvfp, 0);
 				set(finfo->pd, partno);
 				fclose(recvfp);
@@ -155,6 +155,7 @@ int reqst_batch(rfileinfo *finfo, unsigned int batchno)
 			cur_attempt += 1;
 		}
 	}
+	destroy_timer(t);
 	return success;
 }
 // write batch part to file
@@ -296,12 +297,14 @@ void _saveContext(rfileinfo *finfo)
 	// adjust accordingly
 	if(s_partsize < partsize)
 	{
+		fflush(stdout);
 		partsize = s_partsize;
-		buflen = partsize + 10;
+		buflen = partsize + 10; printf("buflen %d\n", buflen);
+		fflush(stdout);
 		batchsize = partsize * PARTSINBATCH;
-		free(sendbuf), free(recvbuf);
+		//free(sendbuf), free(recvbuf);
 
-		sendbuf = (char *)malloc(buflen);
-		recvbuf = (char *)malloc(buflen);
+		sendbuf = (unsigned char *)malloc(buflen);
+		recvbuf = (unsigned char *)malloc(buflen);
 	}
 }
