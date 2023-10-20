@@ -8,13 +8,19 @@ OBJ = ./obj
 IMPL_FILES = $(wildcard $(IMPL)/*.c)
 OBJ_FILES = $(patsubst $(IMPL)/%.c, $(OBJ)/%.o, $(IMPL_FILES))
 
-run: $(OBJ_FILES)
-	@mkdir -p rec
-	@$(CC) $^ -o run
+x1: $(OBJ_FILES)
+	@mkdir -p recv
+	@$(CC) $^ -o run1
 	@rm obj/*
-	@./run
-	#@gdb ./run
-	@rm run
+	@./run1 6543 6542 
+	@rm run1
+
+x2: $(OBJ_FILES)
+	@mkdir -p recv
+	@$(CC) $^ -o run2
+	@rm obj/*
+	@./run2 6542 6543
+	@rm run2
 
 $(OBJ)/%.o : $(IMPL)/%.c
 	@mkdir -p $(@D)

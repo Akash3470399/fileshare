@@ -1,136 +1,160 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <sys/types.h>		// for socket(), inet_addr()
-#include <sys/socket.h>		// for soocket(), bind()
-#include <netinet/in.h>		// for inet_adder(), sockaddr_in
-#include <arpa/inet.h>		// for htons(), inet_addr()
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 #include <errno.h>
 
-#include "intr/sender.h"
-#include "intr/receiver.h"
+#include "intr/globals.h"
 #include "intr/helper.h"
-#include "intr/const.h"
+#include "intr/consts.h"
+#include "intr/receiver.h"
+#include "intr/sender.h"
+
+unsigned int sendmsglen;
+unsigned int recvmsglen;
+
+unsigned char *sendbuf;
+unsigned char *recvbuf;
+
+unsigned char op;
+
+int sockfd;
+struct sockaddr_in receiver_addr, self_addr;
 
 
-int sockfd, addrlen;
-struct sockaddr_in receiverAddr, selfAddr, senderAddr;
-
-unsigned char sbuf[BUFLEN];
-unsigned int smsglen = 0;
-
-unsigned char rbuf[BUFLEN];
-unsigned int rmsglen = 0;
-
-unsigned char op;	// to keep record of operation
-
-unsigned int bytecount = 0;
-
-// initial configurations of addresses & socket
-// also binding of socket
-void net_config(char *addr)
+int config_socket(char *r_addr)
 {
-	memset(&receiverAddr, 0, sizeof(receiverAddr));
-	memset(&selfAddr, 0, sizeof(selfAddr));
-	memset(&senderAddr, 0, sizeof(senderAddr));
+	struct in_addr addr;
 
-
-	receiverAddr.sin_family = AF_INET;
-	receiverAddr.sin_port = htons(P1);	//htons(RECEIVER_PORT);
-	receiverAddr.sin_addr.s_addr = inet_addr(addr);
-
-	selfAddr.sin_family = AF_INET;
-	selfAddr.sin_port = htons(P2); 		
+	memset(&receiver_addr, 0, sizeof(receiver_addr));
+	memset(&self_addr, 0, sizeof(self_addr));
 
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
-		perror("socket creation failed.\n");
+		printf("Socket creation failed\n");
 		exit(EXIT_FAILURE);
 	}
-	
-	printf("sockfd %d\n", sockfd);
-	if(bind(sockfd, (const struct sockaddr *)&selfAddr, sizeof(selfAddr)) < 0)	
+
+	if(inet_aton(r_addr, &addr) == 0)
 	{
-		perror("bind call failed\n");
+		printf("Invalid receiver address\n");
+		close(sockfd);
+		exit(EXIT_FAILURE);
+	}
+
+	// initilizing address 
+	receiver_addr.sin_family = AF_INET;
+	receiver_addr.sin_port = htons(recvport);
+	receiver_addr.sin_addr = addr;
+
+	self_addr.sin_family = AF_INET;
+	self_addr.sin_port = htons(selfport);
+
+	if(bind(sockfd, (struct sockaddr *)&self_addr, (socklen_t)sizeof(self_addr)) < 0)
+	{
+		printf("Bind failed\n");
+		close(sockfd);
 		exit(EXIT_FAILURE);
 	}
 }
 
-int send_buffer(unsigned char *buffer, int len)
+// send the msg on preconfigured socket
+int send_msg(unsigned char *msg, int msglen)
 {
+	int sentbytes;
 
-	int res;
-	res = sendto(sockfd, buffer, len, MSG_DONTWAIT, (struct sockaddr *)&receiverAddr, (socklen_t)sizeof(receiverAddr));
-	if(res < 0 && errno != EAGAIN)
+	sentbytes  = sendto(sockfd, msg, msglen, MSG_DONTWAIT, (struct sockaddr *)&(receiver_addr), (socklen_t)sizeof(receiver_addr));
+
+	if(sentbytes == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+		sentbytes = 0;
+	else if(sentbytes == -1)
 	{
-		printf("sendbuffer :%s\n", strerror(errno));
+		printf("send_msg: %s", strerror(errno));
+		sentbytes = 0;
 	}
-	else
-		res = 0;
+
+	return sentbytes;
+}
+
+// if any msg is receied on socket then stores it on msg
+int recv_msg(unsigned char *msg)
+{
+	int recvedbytes;
+
+	recvedbytes = recvfrom(sockfd, msg, buflen, MSG_DONTWAIT, NULL, NULL);
+
+	if(recvedbytes == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
+		recvedbytes = 0;
+	else if(recvedbytes == -1)
+	{
+		printf("recv_msg: %s", strerror(errno));
+		recvedbytes = 0;
+	}
+
+	return recvedbytes;
+}
+
+// syntax : send <filename>
+// file name should not have spaces
+int isvalid_send_cmd(char *cmd)
+{
+	char str[FILENMLEN];
+	int res = 0, tryno = 0, fileidx = 5;
+
+	memmove(str, cmd, 4);			// coping 4 bytes as "send" has 4 bytes
+	str[4] = '\0';
+
+	if(strcmp(str, "send") == 0)
+	{
+		memmove(str, &(cmd[fileidx]), FILENMLEN);
+		while((tryno < 3) && (res == 0))
+        {
+		    if(isvalid_file(str) == 1)
+			{	
+				res = 1;
+				memmove(&(cmd[fileidx]), str, FILENMLEN);
+			}
+			else
+			{
+				printf("Seems like you have enter wrong filename to send\n");
+				printf("Enter file to send:");
+				scanf("%s", str);
+			}
+			tryno += 1;
+		}
+	}
 	return res;
 }
 
-int receive_inbuffer(unsigned char *buffer)
+int main(int c, char* argv[])
 {
-	int res;
-	res = recvfrom(sockfd, buffer, BUFLEN, MSG_DONTWAIT, (struct sockaddr *)&senderAddr,(socklen_t *)&addrlen);
-
-	if(res < 0 && errno == EAGAIN)
-		res = 0;	
-	else if(res < 0 )
-		printf("%s\n", strerror(errno));
-	return res;
-}
-
-
-int main()
-{	
-	char cmd[64], addr[20] = "127.0.0.1";
-	int valid_addr = 0, tryno = 0, fileidx = 5;
-
+	char addr[16] = "127.0.0.1";
+	char cmd[32];
 	
+	//printf("Enter address :");
+	//scanf("%s\n", addr);
 
-	while(tryno < NO_OF_TRIES && valid_addr == 0)
-	{
-		printf("Enter receiver address: ");
-		scanf("%s", addr);
+	init_globals(atoi(argv[1]), atoi(argv[2]));
+	
+	// all socket & address setup
+	config_socket(addr);
 
-		if(isvalid_addr(addr) == 1)
-			valid_addr = 1;
-		else
-		{
-			printf("That address is invalid!!!\n");
-			printf("address like 192.168.143.234\n\n");
-		}
+	// buffers to be use for sending & receiveing
+	sendbuf = (char *)malloc(sizeof(buflen));
+	recvbuf = (char *)malloc(sizeof(buflen));
 
-		tryno += 1;
-		if(tryno == 3)
-		{
-			printf("Stopping as you haven't specified correct address.\n");
-			exit(EXIT_FAILURE);
-		}
-	}
+	// accepting command
+	fgets(cmd, sizeof(cmd), stdin);
+	cmd[strlen(cmd)-1] = '\0';
 
-	net_config(addr);
-	while(1)
-	{
-		printf(">>>");
-		fgets(cmd, sizeof(cmd), stdin);
-		cmd[strlen(cmd)-1] = '\0';
-		if(isvalid_send_cmd(cmd) == 1)
-		{
-			printf("%s\n", cmd);
-			send_file(&(cmd[fileidx]));
-
-		}
-		else if(strcmp(cmd, "receive") == 0)
-		   receive_file("abc");
-		else if(strcmp(cmd,"exit") == 0)
-			exit(EXIT_SUCCESS);
-		else 
-			printf("%s menu...\n", cmd);
-		printf("sent %d bytes all\n", bytecount);
-	}
+	if(isvalid_send_cmd(cmd) == 1)
+		send_file(&cmd[5]);	
+	else if(strcmp(cmd, "receive") == 0)
+		receive_file();
+	else if(!strcmp(cmd, "exit") == 0)
+		printf("Invalid command\n");
 	return 0;
 }

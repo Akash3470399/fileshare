@@ -5,7 +5,10 @@
 #include "intr/timer.h"
 
 timer *__t;
+long long MSGMIN = -1, MSGMAX = -1, MSGLAST = -1;
 
+
+// offset in miliseconds
 timer *init_timer(long offset)
 {
 	timer *t = (timer *)malloc(sizeof(timer));
@@ -17,13 +20,22 @@ timer *init_timer(long offset)
 
 void reset_timer(timer *t)
 {
-	clock_gettime(CLOCK_MONOTONIC, &(t->basetime));
+	//clock_gettime(CLOCK_MONOTONIC, &(t->basetime));
+	t->offset += t->offset;
 }
 
-void reset_timer_offset(timer *t, long offset)
+void reinit_timer(timer *t, long offset)
 {
 	clock_gettime(CLOCK_MONOTONIC, &(t->basetime));
 	t->offset = offset;
+}
+
+
+// assuming timer is reached & user want to add new offset to same timer
+void reset_timer_offset(timer *t, long offset)
+{
+	//clock_gettime(CLOCK_MONOTONIC, &(t->basetime));
+	t->offset += offset;
 }
 
 int timer_reached(timer *t)
@@ -51,7 +63,6 @@ void destroy_timer(timer *t)
 
 void cur_nanosec()
 {
-
 	long long cur_milisec;
 	struct timespec curtime;
 	
@@ -59,3 +70,42 @@ void cur_nanosec()
 
 	printf("time :%ld\n", ((curtime.tv_sec * 1000000000) + curtime.tv_nsec));
 }
+
+// mark min, max & last time accordingly
+void record_time(timer *t)
+{
+	long long cur_milisec, ref_milisec, newtime;
+	struct timespec curtime;
+
+	clock_gettime(CLOCK_MONOTONIC, &(curtime));
+
+	ref_milisec = (t->basetime.tv_sec)*1000 + ((t->basetime.tv_nsec) / 1000000);
+	cur_milisec = (curtime.tv_sec)*1000 + ((curtime.tv_nsec) / 1000000);
+
+	newtime = cur_milisec - ref_milisec;
+	printf("cur %lld, ref %lld\n", cur_milisec, ref_milisec);
+	if(newtime <= 0) newtime = 1;
+
+	if(MSGLAST = -1)
+	{
+		MSGMIN = newtime;
+		MSGMAX = newtime;
+	}
+	else
+	{
+		if(newtime < MSGMIN)
+			MSGMIN = newtime;
+
+		if(newtime > MSGMAX)
+			MSGMAX = newtime;
+	}
+	MSGLAST = newtime;
+}
+
+void print_reftime()
+{
+	printf("MSGMIN %lld\n", MSGMIN);
+	printf("MSGMAX %lld\n", MSGMAX);
+	printf("MSGLAST %lld\n", MSGLAST);
+}
+

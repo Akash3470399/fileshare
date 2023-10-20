@@ -2,12 +2,11 @@
 #define OPS_H
 
 
-#define OPIDX 0
-#define IDX1 1
-#define FLIDX 1
-#define PRTIDX 1
-#define BTCIDX 1 
-#define DATAIDX 5
+#define OPidx 0
+#define FLidx 1
+#define PRTidx 0 
+#define BTCidx 1 
+#define DATAidx 5
 
 
 #define SENDING 0x01

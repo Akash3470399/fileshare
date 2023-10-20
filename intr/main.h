@@ -1,18 +1,15 @@
-#include "intr/const.h"
 
 #ifndef MAIN_H
 #define MAIN_H
 
+extern unsigned int sendmsglen;
+extern unsigned int recvmsglen;
 
-extern unsigned char sbuf[BUFLEN];
-extern unsigned int smsglen;
-
-extern unsigned char rbuf[BUFLEN];
-extern unsigned int rmsglen;
+extern unsigned char *sendbuf;
+extern unsigned char *recvbuf;
 
 extern unsigned char op;
 
-
-int receive_inbuffer(unsigned char *buffer);
-int send_buffer(unsigned char *buffer, int len);
+int send_msg(unsigned char *msg, int msglen);
+int recv_msg(unsigned char *msg);
 #endif
