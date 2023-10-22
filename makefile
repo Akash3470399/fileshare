@@ -13,7 +13,7 @@ x1: $(OBJ_FILES)
 	@$(CC) $^ -o run1
 	@rm obj/*
 	@./run1 6543 6542 
-	#@gdb -args ./run1 6543 6542 
+	#@gdb -args ./run1 6543 6543 
 	@rm run1
 
 x2: $(OBJ_FILES)

@@ -84,6 +84,7 @@ int send_batch(sfileinfo *finfo, unsigned int curbatch)
 			numtobytes(&(sendbuf[BTCidx]), curbatch);
 			sendmsglen = 1 + NUMSIZE;
 
+			//fprintf(stdout, "batch %d partno %d batchpos %u partpos %ld\n", curbatch, partno, batchpos, ftell(sendfp));
 			sendmsglen += fread(&(sendbuf[DATAidx]), 1, partsize, sendfp);
 
 			send_msg(sendbuf, sendmsglen);
@@ -105,7 +106,7 @@ int send_missing_parts(sfileinfo *finfo, unsigned int curbatch)
 	unsigned char partno;
 	unsigned int reqst_batchno, batchpos, partpos;
 	
-	timer *t = init_timer(MSGMAX * msgcnt * 2);
+	timer *t = init_timer(MSGMAX * msgcnt);
 	FILE *sendfp = fopen(finfo->name, "rb");
 
 	batchpos = batchpos * batchsize;
@@ -125,9 +126,11 @@ int send_missing_parts(sfileinfo *finfo, unsigned int curbatch)
 		}
 		else if(recvmsglen > 0 && op == RESENDPARTS && reqst_batchno == curbatch && sendfp != NULL)
 		{
+			printf("sending missing parts %d batch, parts ", curbatch);
 			for(int i = DATAidx; i < recvmsglen; i++)
 			{
 				partno = recvbuf[i];
+				printf("%d ", partno);
 				partpos = batchpos + (partno * partsize);
 				fseek(sendfp, partpos, SEEK_SET);
 
