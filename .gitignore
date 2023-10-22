@@ -1,5 +1,5 @@
-./obj/*
+obj/*
 file1
 disk.*
 r*
-rec/*
+recv/*

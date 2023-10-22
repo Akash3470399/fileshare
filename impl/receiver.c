@@ -123,7 +123,7 @@ int reqst_batch(rfileinfo *finfo, unsigned int batchno)
 	
 	sendmsglen = 1 + NUMSIZE;
 
-	t = init_timer(MSGLAST*15 + 10);
+	t = init_timer(MSGLAST*5);
 	send_msg(sendbuf, sendmsglen);
 
 	while((cur_attempt < total_attempts) && success == 0)
@@ -188,7 +188,7 @@ int receive_batch(rfileinfo *finfo, unsigned int curbatch)
 	FILE *recvfp;
 	unsigned int resp_batchno, resp_partno, recved_prtcnt = 0;
 
-	timer *t = init_timer(MSGLAST * (msgcnt/2));	// wait for at least 20% msg can reach
+	timer *t = init_timer(MSGLAST * (msgcnt/5));	// wait for at least 20% msg can reach
 	recvfp = fopen(finfo->name, "rb+");
 	
 	while(!(timer_reached(t)) && (recved_prtcnt < PARTSINBATCH) && recvfp != NULL)
@@ -204,7 +204,7 @@ int receive_batch(rfileinfo *finfo, unsigned int curbatch)
 			set(finfo->pd, resp_partno);
 
 			int avg = (MSGMIN + MSGLAST)/2;
-			reinit_timer(t, avg * 4);
+			reinit_timer(t, avg * 5);
 			recved_prtcnt += 1;
 		}
 	}
@@ -235,7 +235,7 @@ int recover_parts(rfileinfo *finfo, unsigned int curbatch)
 	unsigned char missparts_arr[PARTSINBATCH];
 	unsigned int resp_partno, resp_batchno;
 	
-	timer *t = init_timer(MSGLAST * 3);
+	timer *t = init_timer(MSGLAST * 5);
 	FILE *recvfp;
 
 	recvfp = fopen(finfo->name, "rb+");
@@ -252,7 +252,7 @@ int recover_parts(rfileinfo *finfo, unsigned int curbatch)
 		{
 			writetofile(recvfp, curbatch);
 			set(finfo->pd, resp_partno);
-			reinit_timer(t, MSGLAST*2);
+			reinit_timer(t, MSGLAST*4);
 			tryno = 0;
 		}
 

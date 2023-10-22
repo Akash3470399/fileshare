@@ -183,4 +183,6 @@ int main(int c, char* argv[])
 	else if((!strcmp(cmd, "exit")) == 0)
 		printf("Invalid command\n");
 	return 0;
+
+	close(sockfd);
 }

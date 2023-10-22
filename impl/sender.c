@@ -106,7 +106,7 @@ int send_missing_parts(sfileinfo *finfo, unsigned int curbatch)
 	unsigned char partno;
 	unsigned int reqst_batchno, batchpos, partpos;
 	
-	timer *t = init_timer(MSGMAX * msgcnt);
+	timer *t = init_timer(MSGMAX * msgcnt + 1000);
 	FILE *sendfp = fopen(finfo->name, "rb");
 
 	batchpos = batchpos * batchsize;
