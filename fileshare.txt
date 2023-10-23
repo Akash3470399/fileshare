@@ -1,0 +1,104 @@
+
+Our goal is to transfer a huge (in GBs) to another device in same network, using UDP protocol.
+
+Terminologies 
+	part : 
+		- It is some part of data of that huge file.
+		- each part will have it's partno in a batch.
+
+	Batch : 
+		- A file is devided into multiple batches, internally a batch is devided into multiple parts.
+		- Some fiexed number of part numbers (k) will be used in each batch. 
+		- Each batch except last batch will have k parts, that last batch can have k or less than k parts.  
+		- batch size is depend on part size & no of parts in batch.
+
+
+
+
+Timers:
+	
+	When a message expect response in return then timer is set form specific time & if that time is reached 
+	then that message is retransferd & timer is set to some higher value then last timer offset. This procedure 
+	is followed for some fixed no of time .(currently 3-4 times)
+
+	Three reference times will be use to determine the timer offset.
+
+	these reference times will be calculated by keeping some time record,
+
+	MSGLAST : time taken to receive response for last message 
+	MSGMIN : minimum time taken by a message to reach.
+	MSGMAX : maximum time taken by a message to reach. 
+
+	and these times will be refreshed after some time.
+
+	SENDER TIMES:
+	 	SWAIT_1 : sufficiently larg. (sec to some minutes)
+
+		SWAIT_2 :  MSGLAST * parts in batch + (approx. time required for file operations (few seconds))
+
+	RECEIVER TIME:
+		RWAIT_1 : sufficiently larg. (sec to some minutes)
+
+		RWAIT_2 : MSGLAST * (parts in batch)/2 	(wait at least 50 % parts can reach.)
+
+		RWAIT_3 : (MSGMIN+MSGLAST)/2 * (5) + (file operatin offset) (at least 5 message can reach) 
+
+		RWAIT_4 : MSGLAST * (parts requested for resend) + (file operation offset)
+
+
+Algorithm 
+
+	RECEIVER:
+		receiver will start & will configure it so that it can reaceive message.
+
+	SENDER :
+		Assumeing receiver is ready to receive, sender will send the first message, this message will have information as
+		<Filename><Filesize><possible partsize> & will wait for sufficiently large time (SWAIT_1) for the response.
+		here partsize is the length of message that sender is capable of sending.
+
+	RECEIVER:
+		when message is received at receiver end, receiver will extract the information from message. Then it will compare
+		its capacity with senders capacity of sending message & accordingly choose minimum of them. 
+		In response sender will	send back message as <batchno><partsize> and will wait for resonse for RWAIT_2 time.
+		Here partsize is the partsize that will be used for data transfer. depending on partsize & filesize total batches will 
+		be calculated & Now receive expect data parts from sender.
+
+		(partsize is only send for first batch reqest & for subsequent batch acknowledge only next batch no will be send.)
+
+	SENDER:
+		When sender received response it will then reset the partsize if needed & then will send parts from batch 0
+		one by one contineusly. When all the parts are send then sender will wait for SWAIT_2 time. In response sender
+		expect that 
+				1) Acknowledge that all parts are received.
+				2) Missing part numbers, if some parts are not received at receiver.
+
+	RECEIVER:
+		AS receiver is expecting data, now any another messages expect data part message will be discared. Receiver will 
+		maintain a bitmap to store the the record of parts that been received.when data parts is arrived, 
+		first receiver will verify that message is from same batch & if that part is not received earlier then store it in file
+		at its appropiate position and recored its presense in a bitmap.
+
+		if all data parts are received or if for some time RWAIT_3 any message is not received then handle missing part.
+
+		if all data parts from batch is present then send acknowlege for next batch.
+		
+		if some of the parts not reched to receiver then receiver will frame a request for missing parts & send it back to sender
+		and will wait for RWAIT_2 time.
+
+	SENDER :
+		when sender received acknowledge then sender will send next batch part by part.
+		If reqest for missing part is received then resend that asked parts again & wait for SWAIT_2 time, in response receive again can send 
+		message for missing parts and can also send that received all part.
+
+	This process will continued for remaining batches
+		.
+		.
+		.
+	At last batch.
+
+	RECEIVER:
+		will receive expected part in last batch & request if any part is missing & at last when all parts from last batch are received then 
+		checks that it has received all file of expected size & at last it will send back response that file is received...
+
+	SENDER :
+		sender on received response that file is received & will assume that file transfer was successful...

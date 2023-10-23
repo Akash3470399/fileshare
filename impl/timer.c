@@ -68,7 +68,7 @@ void cur_nanosec()
 	
 	clock_gettime(CLOCK_MONOTONIC, &(curtime));
 
-	printf("time :%ld\n", ((curtime.tv_sec * 1000000000) + curtime.tv_nsec));
+	printf("time :%lld\n", ((curtime.tv_sec * 1000000000) + curtime.tv_nsec));
 }
 
 // mark min, max & last time accordingly
