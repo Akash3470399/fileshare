@@ -5,7 +5,7 @@
 #include "intr/helper.h"
 
 #define GRPTYPE unsigned int
-#define GRPSIZE sizeof(GRPTYPE)*8
+#define GRPSIZE (sizeof(GRPTYPE)*8)
 
 
 /*
@@ -41,7 +41,7 @@ void destroy_prddata(struct prtdata *pd)
 	free(pd);
 }
 // mark as pos'th element as present
-void set(struct prtdata *pd, unsigned char pos)
+void set(struct prtdata *pd, unsigned int pos)
 {
 	unsigned int grpno, grppos;
   	
@@ -55,7 +55,7 @@ void set(struct prtdata *pd, unsigned char pos)
 }
 
 // remove pos'th element
-void reset(struct prtdata *pd, unsigned char pos)
+void reset(struct prtdata *pd, unsigned int pos)
 {
 	unsigned int grpno, grppos;
   	if(pd != NULL)
@@ -67,7 +67,7 @@ void reset(struct prtdata *pd, unsigned char pos)
 }
 
 
-int ispart_present(struct prtdata *pd, unsigned char pos)
+int ispart_present(struct prtdata *pd, unsigned int pos)
 {
 	int resp = -1;
 	unsigned int grpno, grppos;

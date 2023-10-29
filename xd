@@ -5,6 +5,6 @@ clang -g -c -o obj/part.o impl/part.c -I./
 clang -g -c -o obj/receiver.o impl/receiver.c -I./
 clang -g -c -o obj/sender.o impl/sender.c -I./
 clang -g -c -o obj/timer.o impl/timer.c -I./
-clang -g obj/helper.o obj/main.o obj/part.o obj/receiver.o obj/sender.o obj/timer.o -o run 6543 6543
+clang -g obj/helper.o obj/main.o obj/part.o obj/receiver.o obj/sender.o obj/timer.o -o run
 lldb -- ./run 6543 6543
 rm run

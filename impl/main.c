@@ -18,15 +18,13 @@ unsigned int selfport;
 unsigned int recvport;
 unsigned int partsize;
 unsigned int batchsize;
-unsigned int buflen;
 
 void init_globals(int p1, int p2)
 {
 	selfport = p1;
 	recvport = p2;
-	partsize = 1024; 
+	partsize = BUFLEN-10; 
 	batchsize = partsize * PARTSINBATCH;
-	buflen = partsize + 10;
 }
 
 void show_globals()
@@ -35,14 +33,13 @@ void show_globals()
 	printf("receiver port %u\n", recvport);
 	printf("partsize %u\n", partsize);
 	printf("batchsize %u\n", batchsize);
-	printf("buflen %u\n", buflen);
 }
 
 unsigned int sendmsglen;
 unsigned int recvmsglen;
 
-unsigned char *sendbuf;
-unsigned char *recvbuf;
+unsigned char sendbuf[BUFLEN];
+unsigned char recvbuf[BUFLEN];
 
 unsigned char op;
 
@@ -90,12 +87,9 @@ void config_socket(char *r_addr)
 int send_msg(unsigned char *msg, int msglen)
 {
 	int sentbytes;
-
-	sentbytes  = sendto(sockfd, msg, msglen, MSG_DONTWAIT, (struct sockaddr *)&(receiver_addr), (socklen_t)sizeof(receiver_addr));
-
-	if(sentbytes == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
-		sentbytes = 0;
-	else if(sentbytes == -1)
+		
+	sentbytes  = sendto(sockfd, msg, msglen, 0, (struct sockaddr *)&(receiver_addr), (socklen_t)sizeof(receiver_addr));
+	if(sentbytes == -1)
 	{
 		printf("send_msg: %s", strerror(errno));
 		sentbytes = 0;
@@ -109,7 +103,7 @@ int recv_msg(unsigned char *msg)
 {
 	int recvedbytes;
 
-	recvedbytes = recvfrom(sockfd, msg, buflen, MSG_DONTWAIT, NULL, NULL);
+	recvedbytes = recvfrom(sockfd, msg, partsize, MSG_DONTWAIT, NULL, NULL);
 
 	if(recvedbytes == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
 		recvedbytes = 0;
@@ -166,11 +160,6 @@ int main(int c, char* argv[])
 	
 	// all socket & address setup
 	config_socket(addr);
-
-	// buffers to be use for sending & receiveing
-	printf("buflen %d\n", buflen);
-	sendbuf = (unsigned char *)malloc(sizeof(buflen));
-	recvbuf = (unsigned char *)malloc(sizeof(buflen));
 
 	// accepting command
 	fgets(cmd, sizeof(cmd), stdin);

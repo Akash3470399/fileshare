@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -I./
+CFLAGS = -g -I./
 
 IMPL = ./impl
 INTR = ./intr
@@ -12,7 +12,7 @@ x1: $(OBJ_FILES)
 	@mkdir -p recv
 	@$(CC) $^ -o run1
 	@./run1 6543 6542 
-	#@gdb -args ./run1 6543 6543 
+	#@gdb -args ./run1 6543 6542 
 	@rm run1
 
 x2: $(OBJ_FILES)

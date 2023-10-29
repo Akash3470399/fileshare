@@ -83,7 +83,7 @@ void record_time(timer *t)
 	cur_milisec = (curtime.tv_sec)*1000 + ((curtime.tv_nsec) / 1000000);
 
 	newtime = cur_milisec - ref_milisec;
-	printf("cur %lld, ref %lld\n", cur_milisec, ref_milisec);
+	//printf("cur %lld, ref %lld\n", cur_milisec, ref_milisec);
 	if(newtime <= 0) newtime = 1;
 
 	if(MSGLAST == -1)

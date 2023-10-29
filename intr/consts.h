@@ -3,6 +3,7 @@
 #define CONSTS_H
 
 #define FILENMLEN 32
+#define BUFLEN 1035 
 #define NUMSIZE 4
 #define ATTEMPTS 3
 

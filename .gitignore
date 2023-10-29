@@ -1,5 +1,6 @@
 obj/*
 file1
-disk.*
 r*
+*.iso
 recv/*
+a
